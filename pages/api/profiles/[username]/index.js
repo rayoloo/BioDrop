@@ -9,6 +9,8 @@ import { Profile, Stats, ProfileStats, User } from "@models/index";
 import getLocation from "@services/github/getLocation";
 import dateFormat from "@services/utils/dateFormat";
 
+import { limiter } from "pages/api/config/limiter";
+
 export default async function handler(req, res) {
   const username = req.query.username;
   if (!username) {
@@ -178,7 +180,12 @@ export async function getUserApi(req, res, username, options = {}) {
   const date = today;
   date.setHours(1, 0, 0, 0);
 
-  if (!isOwner) {
+  const remaining = await limiter.removeTokens(1);
+  if (remaining < 0) {
+    console.error("Too Many Requests");
+  }
+
+  if (!isOwner && remaining > 0) {
     updates.push(
       (async () => {
         try {
